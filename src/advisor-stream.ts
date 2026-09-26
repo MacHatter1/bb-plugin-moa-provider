@@ -1,7 +1,8 @@
 // Follows one advisor's timeline while it works, for its row in the panel:
 // what it is doing right now ("Thinking: …", "Reading src/app.ts") and the
 // answer it is writing, as it streams. Items nested under the advisor's own
-// sub-agents are ignored, like everywhere else.
+// sub-agents are ignored, like everywhere else. Paths in that line are
+// shortened, so a panel on screen does not show the user's home directory.
 
 type Rec = Record<string, unknown>;
 
@@ -26,18 +27,51 @@ function reasoningPreview(tail: string): string {
   return `…${flat.slice(-(ACTIVITY_CHARS - 11))}`;
 }
 
-function describeItem(item: Rec): string | null {
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+/** Where the advisor works and the user's home, for shortening paths. */
+export interface AdvisorPaths {
+  workspace?: string | null;
+  home?: string | null;
+}
+
+/** Workspace paths become relative and the home directory becomes `~`. */
+export function pathShortener({ workspace, home }: AdvisorPaths): (text: string) => string {
+  const rules: [RegExp, string, string][] = [];
+  for (const [root, relative, bare] of [
+    [workspace, "", "."],
+    [home, "~/", "~"],
+  ] as const) {
+    const trimmed = root?.replace(/\/+$/u, "") ?? "";
+    // A root of "/" would match every path.
+    if (trimmed === "") continue;
+    rules.push([new RegExp(`${escapeRegExp(trimmed)}(/|(?![\\w.-]))`, "gu"), relative, bare]);
+  }
+  return (text) =>
+    rules.reduce(
+      (out, [pattern, relative, bare]) =>
+        out.replace(pattern, (_match, slash: string) => (slash === "/" ? relative : bare)),
+      text,
+    );
+}
+
+function describeItem(item: Rec, shorten: (text: string) => string): string | null {
   switch (item.type) {
     case "reasoning":
       return "Thinking";
     case "agentMessage":
       return "Writing";
-    case "commandExecution":
-      return oneLine(`Running ${str(item.command) ?? "a command"}`);
+    case "commandExecution": {
+      // Agents often start with `cd <workspace> &&`, which says nothing here.
+      const command = shorten(str(item.command) ?? "a command").replace(/^cd \. && /u, "");
+      return oneLine(`Running ${command}`);
+    }
     case "fileRead":
-      return oneLine(`Reading ${str(item.path) ?? "a file"}`);
+      return oneLine(`Reading ${shorten(str(item.path) ?? "a file")}`);
     case "search":
-      return oneLine(`Searching for "${str(item.query) ?? ""}"`);
+      return oneLine(`Searching for "${shorten(str(item.query) ?? "")}"`);
     case "webSearch":
       return "Searching the web";
     case "webFetch":
@@ -55,6 +89,11 @@ export class AdvisorStream {
   activity: string | null = null;
   private messageId: string | null = null;
   private reasoningTail = "";
+  private readonly shorten: (text: string) => string;
+
+  constructor(paths: AdvisorPaths = {}) {
+    this.shorten = pathShortener(paths);
+  }
 
   /** Apply a batch of timeline events; true when the panel should refresh. */
   apply(rows: readonly { type: string; data: unknown }[]): boolean {
@@ -72,7 +111,7 @@ export class AdvisorStream {
         }
         if (type === "item/started") {
           if (item.type === "reasoning") this.reasoningTail = "";
-          const activity = describeItem(item);
+          const activity = describeItem(item, this.shorten);
           if (activity !== null) this.activity = activity;
         }
         changed = true;
@@ -89,7 +128,7 @@ export class AdvisorStream {
         type === "item/reasoning/summaryTextDelta"
       ) {
         this.reasoningTail = `${this.reasoningTail}${delta}`.slice(-REASONING_TAIL_CHARS);
-        const preview = reasoningPreview(this.reasoningTail);
+        const preview = reasoningPreview(this.shorten(this.reasoningTail));
         this.activity = preview === "" ? "Thinking" : `Thinking: ${preview}`;
         changed = true;
       }

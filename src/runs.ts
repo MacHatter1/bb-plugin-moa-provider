@@ -12,6 +12,7 @@
 // the advisors again while it works; with "every-n" the server nudges it to
 // call that tool every N tool calls, through BB's ordinary steer.
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { ThreadDelta } from "@get-bb/plugin-sdk/provider-bridge";
 import { CONSULT_TOOL_NAME, MOA_PLUGIN_ID } from "./constants.js";
@@ -327,6 +328,8 @@ export class MoaRuns {
     string,
     { at: number; facts: ProviderFacts }
   >();
+  /** Workspace paths by environment, for shortening advisor activity. */
+  private readonly workspacePaths = new Map<string, string>();
 
   private readonly timing: Timing;
 
@@ -829,7 +832,10 @@ export class MoaRuns {
     const { run } = ctx;
     const { slot, workerKey } = advisor;
     const { entry } = args;
-    const stream = new AdvisorStream();
+    const stream = new AdvisorStream({
+      workspace: await this.workspacePath(ctx.environmentId),
+      home: homedir(),
+    });
     const label = entry.label;
     let note: AdvisorNote;
     let status: AdvisorStatus;
@@ -1313,6 +1319,20 @@ export class MoaRuns {
       .sdk()
       .threads.events.list({ threadId, order: "desc", limit: "1" });
     return rows.length === 0 ? 0 : Number(rows[0]!.seq);
+  }
+
+  /** Where an environment's files live; null when unknown. */
+  private async workspacePath(environmentId: string): Promise<string | null> {
+    const known = this.workspacePaths.get(environmentId);
+    if (known !== undefined) return known;
+    try {
+      const { path } = await this.deps.sdk().environments.get({ environmentId });
+      if (path !== null) this.workspacePaths.set(environmentId, path);
+      return path;
+    } catch (error) {
+      this.deps.log.warn(`could not look up environment ${environmentId}: ${errorMessage(error)}`);
+      return null;
+    }
   }
 
   // ── provider facts ──────────────────────────────────────────────────────

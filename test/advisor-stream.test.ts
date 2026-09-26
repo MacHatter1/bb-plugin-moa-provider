@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AdvisorStream } from "../src/advisor-stream.js";
+import { AdvisorStream, pathShortener } from "../src/advisor-stream.js";
 
 const event = (type: string, data: Record<string, unknown>) => ({ type, data });
 
@@ -49,5 +49,50 @@ describe("AdvisorStream", () => {
     ]);
     expect(stream.activity!.length).toBeLessThanOrEqual(140);
     expect(stream.activity).toMatch(/^Thinking: …x+ the end$/u);
+  });
+
+  it("shows workspace paths as relative and the home directory as ~", () => {
+    const stream = new AdvisorStream({
+      workspace: "/Users/sam/.bb/worktrees/thr_1/pantry/",
+      home: "/Users/sam",
+    });
+    stream.apply([
+      event("item/started", {
+        item: { type: "fileRead", id: "f", path: "/Users/sam/.bb/worktrees/thr_1/pantry/src/pantry.js" },
+      }),
+    ]);
+    expect(stream.activity).toBe("Reading src/pantry.js");
+    stream.apply([
+      event("item/started", {
+        item: {
+          type: "commandExecution",
+          id: "c",
+          command: "cd /Users/sam/.bb/worktrees/thr_1/pantry && node --test",
+        },
+      }),
+    ]);
+    expect(stream.activity).toBe("Running node --test");
+    stream.apply([
+      event("item/started", { item: { type: "reasoning", id: "r" } }),
+      event("item/reasoning/textDelta", { itemId: "r", delta: "Check /Users/sam/.npmrc too." }),
+    ]);
+    expect(stream.activity).toBe("Thinking: Check ~/.npmrc too.");
+  });
+});
+
+describe("pathShortener", () => {
+  const shorten = pathShortener({ workspace: "/work/app", home: "/home/sam" });
+
+  it("leaves paths that only share a prefix alone", () => {
+    expect(shorten("ls /work/app-old /home/samuel")).toBe("ls /work/app-old /home/samuel");
+  });
+
+  it("turns the bare roots into . and ~", () => {
+    expect(shorten("cd /work/app; ls /home/sam")).toBe("cd .; ls ~");
+  });
+
+  it("changes nothing without roots, or with a root of /", () => {
+    expect(pathShortener({})("/work/app/x")).toBe("/work/app/x");
+    expect(pathShortener({ workspace: "/" })("/work/app/x")).toBe("/work/app/x");
   });
 });

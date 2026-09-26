@@ -64,7 +64,7 @@ function createFakeSdk(behaviours: Record<string, Behaviour>) {
       if (behaviour.stream) {
         const id = `${thread.id}-s${thread.turn}`;
         push(thread, "item/started", { item: { type: "reasoning", id: `${id}-r`, summary: [], content: [] } });
-        push(thread, "item/reasoning/textDelta", { itemId: `${id}-r`, delta: "Weighing the options." });
+        push(thread, "item/reasoning/textDelta", { itemId: `${id}-r`, delta: "Weighing the options in /work/pantry/src." });
         await new Promise((resolve) => setTimeout(resolve, behaviour.stream!.everyMs));
         push(thread, "item/started", { item: { type: "agentMessage", id, text: "" } });
         for (const chunk of behaviour.stream.chunks) {
@@ -87,6 +87,11 @@ function createFakeSdk(behaviours: Record<string, Behaviour>) {
     }, 5);
   };
   const sdk = {
+    environments: {
+      async get() {
+        return { path: "/work/pantry" };
+      },
+    },
     threads: {
       async get({ threadId }: { threadId: string }) {
         if (threadId === "moa-1" || threadId.startsWith("thr_")) {
@@ -735,7 +740,8 @@ describe("MoaRuns", () => {
     expect(rounds.get(id)!.advisors[0]).toMatchObject({ status: "answered", activity: null });
     // The panel saw the answer grow while the advisor was still running.
     const partials = saves.map((advisors) => advisors[0]!).filter((entry) => entry.status === "running");
-    expect(partials.some((entry) => entry.activity?.startsWith("Thinking: Weighing"))).toBe(true);
+    // Its workspace path shows as relative.
+    expect(partials.some((entry) => entry.activity === "Thinking: Weighing the options in src.")).toBe(true);
     expect(partials.some((entry) => entry.answer === "WAL lets ")).toBe(true);
   });
 
