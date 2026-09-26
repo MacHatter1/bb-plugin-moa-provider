@@ -159,7 +159,7 @@ bb plugin install path:$PWD --yes
 | **Model picker** | Choose **Mixture of Agents**, then a preset. Each preset is one "model". |
 | **The thread** | The advisor panel for each round, then the aggregator's work as it happens. |
 | **Settings → Plugins → Mixture of Agents** | The **Presets** page: name, description, aggregator, advisors, mid-task consulting. |
-| **The composer** | `/moa <question>`, and **Ask Mixture of Agents** in the **+** menu. |
+| **The composer** | `/moa <question>`, and **Ask MoA** in the **+** menu. |
 | **`bb thread list --include-hidden`** | The worker threads. Their titles start with `MoA advisor ·` or `MoA aggregator ·`. |
 
 ## How it works

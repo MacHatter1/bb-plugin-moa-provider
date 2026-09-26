@@ -470,7 +470,7 @@ export default definePluginApp((app) => {
     plusMenu: [
       {
         id: "ask",
-        label: "Ask Mixture of Agents",
+        label: "Ask MoA",
         description: "Get your advisors' take on a question with /moa",
         icon: "Lightbulb",
         run: ({ composer }) => {

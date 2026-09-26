@@ -8,6 +8,7 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The composer's **+** menu item is now **Ask MoA**.
 - Advisors are asked to keep to the workspace, and to read outside it only
   when the request is about something there.
 
