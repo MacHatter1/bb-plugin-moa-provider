@@ -25,8 +25,10 @@ installed provider and model can fill a slot.
 
 Every slot runs as an ordinary BB provider on a hidden worker thread in the MoA
 thread's environment, using that provider's existing sign-in. Advisors run in
-parallel, once per message, and are told not to change anything; any approval
-they ask for is declined, so a hidden advisor never waits on you. The
+parallel, once per message. They are told to change nothing and to keep to the
+workspace, and any approval they ask for is declined, so a hidden advisor never
+waits on you. Those rules are instructions, not a sandbox: an advisor can still
+read outside the workspace, and what it reads goes to its model's provider. The
 aggregator receives your message unchanged, with the advisors' answers appended
 as a private notes block, so its cached conversation prefix survives. Workers
 belong to the MoA thread: they archive and delete with it, and are reused on

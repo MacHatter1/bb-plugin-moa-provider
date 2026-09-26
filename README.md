@@ -14,7 +14,7 @@ Any installed provider and model can fill a slot.
 ![Plugin SDK ≥ 0.5.9](https://img.shields.io/badge/plugin%20sdk-%E2%89%A5%200.5.9-c2410c)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 
-[Features](#features) · [Install](#install) · [Where to find it](#where-to-find-it) · [How it works](#how-it-works) · [Safe by default](#safe-by-default) · [CLI](#cli) · [Settings](#settings) · [Development](#development)
+[Features](#features) · [Install](#install) · [Where to find it](#where-to-find-it) · [How it works](#how-it-works) · [Safety and privacy](#safety-and-privacy) · [CLI](#cli) · [Settings](#settings) · [Development](#development)
 
 <br>
 
@@ -197,9 +197,10 @@ sequenceDiagram
   turn it hands the message to the plugin server through the internal
   `moa_turn` tool, long-polls for deltas, and raises the aggregator's
   approvals in your thread.
-- **Advisors never block on you.** They run in Accept Edits mode and are told
-  not to change anything; any approval or question they raise is declined, so
-  a hidden advisor cannot sit waiting for a click.
+- **Advisors never block on you.** They run in the MoA thread's permission
+  mode (Accept Edits for `/moa`), or the nearest mode their provider has, and
+  are told to change nothing. Any approval or question they raise is declined,
+  so a hidden advisor cannot sit waiting for a click.
 - **A turn costs one advisor turn per advisor, plus the aggregator's turn.**
   Most of the cost is the aggregator's, since that is the turn that works.
 
@@ -232,9 +233,9 @@ plugin grants it itself: the tool only reads.
 | `fanout: per_iteration` | Closest is every 1 tool call; the loop itself runs inside the provider |
 | — | "When the aggregator asks": `moa_consult` only, at the model's discretion |
 | `enabled: false` | **Consult advisors first** off: the aggregator answers alone |
-| References get no tools | Advisors may read the workspace, and are told not to change it |
+| References get no tools | Advisors can read files and run read-only commands, and are told to change nothing and keep to the workspace |
 | Recursive presets blocked | Same: a slot cannot use the Mixture of Agents provider |
-| Temperatures, privacy filter | Not available: providers own sampling, and advisors see only your own workspace |
+| Temperatures, privacy filter | Not available: providers own sampling, and nothing filters what an advisor reads |
 
 </details>
 
@@ -258,11 +259,18 @@ plugin grants it itself: the tool only reads.
 
 </details>
 
-## Safe by default
+## Safety and privacy
 
-- 🚫 **Advisors change nothing.** They are instructed to edit no files and run
-  no mutating commands, and any approval they ask for is declined rather than
-  shown to you.
+- 🚫 **Advisors are told to change nothing.** That is an instruction, not a
+  lock. Any approval they ask for is declined, and BB's workspace sandbox stops
+  writes outside the workspace. But Accept Edits and Auto let an agent edit
+  inside the workspace without asking, and a provider with only full access,
+  such as Pi, has no sandbox at all.
+- 📂 **Advisors can read beyond the workspace.** They are asked to keep to it
+  unless your question is about something outside, but no provider's sandbox
+  blocks reads, for advisors or any other thread. What an advisor reads goes to
+  its slot's model provider, so choose a preset's providers as you would for
+  any thread.
 - 🔒 **Nothing new to sign in to.** Slots run on the providers already
   installed on your machine. No API keys, no proxy, no third-party service.
 - 👁️ **Nothing hidden from you.** Every advisor round is a panel in your

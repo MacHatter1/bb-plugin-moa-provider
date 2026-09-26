@@ -8,8 +8,9 @@ description: Run or inspect Mixture of Agents (MoA) threads in BB — the "moa" 
 The `moa` provider runs each user message through a preset:
 
 1. **Advisors** (zero to six provider/model slots) get the request, in parallel,
-   and answer once. They may read the workspace but are told not to change it,
-   and any approval they ask for is declined.
+   and answer once. They are told to change nothing and to keep to the
+   workspace, and any approval they ask for is declined. These are
+   instructions, not a sandbox: reads outside the workspace are not blocked.
 2. The **aggregator** (one slot) gets the user's message plus the advisors'
    answers as private notes, then does the real work: tools, edits, and the
    reply.

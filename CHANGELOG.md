@@ -6,6 +6,11 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+- Advisors are asked to keep to the workspace, and to read outside it only
+  when the request is about something there.
+
 ### Fixed
 
 - The advisor panel no longer shows your home directory while an advisor
@@ -18,6 +23,9 @@ project uses [Semantic Versioning](https://semver.org/).
   "Loading advisors…".
 - The `moa_ask` instructions tell agents whose tools are deferred to load the
   schemas first, so the first call no longer fails with no arguments.
+- The README no longer says advisors see only your workspace or always run in
+  Accept Edits mode. It now says what is an instruction and what BB's sandbox
+  enforces.
 
 ## 0.1.0 - 2026-09-26
 
