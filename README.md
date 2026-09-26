@@ -99,7 +99,7 @@ appear there, and your answers go back to it.
 
 ### 💬 `/moa` from any thread
 
-Type `/moa <question>` in a Claude Code, Codex or Pi thread. That thread's own
+Type `/moa <question>` in a thread on any other provider. That thread's own
 agent plays the aggregator: it asks your advisors, shows the panel live, then
 weighs their notes in its answer.
 
@@ -354,13 +354,18 @@ server.ts              provider, settings, RPC, `bb moa`, and the four agent too
 host.ts                the daemon's entry point for the provider bridge
 app.tsx                the Presets page, the composer action, and the panel slot
 src/bridge.ts          the provider bridge: moa_turn, long-polling, approvals
+src/wire.ts            the moa_turn schema shared by the bridge and the server
 src/runs.ts            the orchestrator: advisors, aggregator, check-ins, /moa
 src/mirror.ts          aggregator timeline → thread/delta, tool-call counting
+src/advisor-stream.ts  one advisor's live activity and answer, for its panel row
 src/rounds.ts          advisor rounds in SQLite, for the panels
 src/advisor-panel.tsx  the ::moa-advisors message directive
+src/agent-config.ts    which tools and skills each thread is offered
 src/prompts.ts         the text advisors and aggregators see
 src/presets.ts         the preset schema shared by server, app and CLI
+src/constants.ts       limits and ids, kept free of zod for the app bundle
 skills/                the two bundled agent skills
+test/                  vitest suites and a recorded aggregator turn
 docs/                  logo and screenshots
 ```
 
