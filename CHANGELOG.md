@@ -6,6 +6,8 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.1.1 - 2026-09-26
+
 ### Fixed
 
 - `/moa` from a Cursor or Codex thread no longer stops the advisors after a
