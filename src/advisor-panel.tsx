@@ -1,7 +1,13 @@
 // The `::moa-advisors{id="…"}` embed: one advisor round, live. The MoA
 // bridge writes the directive into the thread when a round starts; this card
 // loads the round over RPC and refreshes on the server's realtime signal.
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import {
   Markdown,
   experimental_Icon as Icon,
@@ -28,13 +34,33 @@ type RoundState =
 const RUNNING_POLL_MS = 4_000;
 const LONG_ANSWER_CHARS = 700;
 const LONG_ANSWER_LINES = 10;
+const LOADED_ROUNDS_KEPT = 100;
+
+/** Rounds already loaded, so a panel the thread view re-mounts shows at once. */
+const loadedRounds = new Map<string, AdvisorRound>();
+
+function rememberRound(key: string, round: AdvisorRound | null): void {
+  loadedRounds.delete(key);
+  if (round === null) return;
+  loadedRounds.set(key, round);
+  if (loadedRounds.size > LOADED_ROUNDS_KEPT) {
+    loadedRounds.delete(loadedRounds.keys().next().value!);
+  }
+}
 
 function useRound(id: string, threadId: string): { state: RoundState; reload: () => void } {
   const rpc = useRpc<typeof rpcContract>();
-  const [state, setState] = useState<RoundState>({ kind: "loading" });
+  const key = `${threadId} ${id}`;
+  const [state, setState] = useState<RoundState>(() => {
+    const cached = loadedRounds.get(key);
+    return cached === undefined ? { kind: "loading" } : { kind: "ready", round: cached };
+  });
   const reload = useCallback(() => {
     rpc.call("advisor_round_get", { id, threadId }).then(
-      ({ round }) => setState(round === null ? { kind: "missing" } : { kind: "ready", round }),
+      ({ round }) => {
+        rememberRound(key, round);
+        setState(round === null ? { kind: "missing" } : { kind: "ready", round });
+      },
       (cause: unknown) =>
         setState((current) =>
           // Keep showing a loaded round through a transient failure.
@@ -43,7 +69,7 @@ function useRound(id: string, threadId: string): { state: RoundState; reload: ()
             : { kind: "error", message: cause instanceof Error ? cause.message : String(cause) },
         ),
     );
-  }, [rpc, id, threadId]);
+  }, [rpc, id, threadId, key]);
   useEffect(reload, [reload]);
   useRealtime(ADVISOR_ROUND_CHANNEL, (payload) => {
     if (typeof payload === "object" && payload !== null && (payload as { id?: unknown }).id === id) {
@@ -57,6 +83,58 @@ function useRound(id: string, threadId: string): { state: RoundState; reload: ()
     return () => clearInterval(timer);
   }, [running, reload]);
   return { state, reload };
+}
+
+// An agent answering `/moa` embeds its round twice: live while the advisors
+// work, then again above its answer, so the panel stays in view when BB folds
+// the finished turn. Where turns stay flat, both copies are on screen, so
+// only the last one is shown in full.
+const copies = new Map<string, Set<HTMLElement>>();
+const copyListeners = new Set<() => void>();
+let copiesVersion = 0;
+
+function copiesChanged(): void {
+  copiesVersion += 1;
+  for (const listener of copyListeners) listener();
+}
+
+function subscribeToCopies(listener: () => void): () => void {
+  copyListeners.add(listener);
+  return () => {
+    copyListeners.delete(listener);
+  };
+}
+
+function follows(element: HTMLElement, other: HTMLElement): boolean {
+  return (element.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+/** Registers this copy of a round; returns the last copy after it, if any. */
+function useLaterCopy(key: string, element: HTMLElement | null): HTMLElement | null {
+  useEffect(() => {
+    if (element === null) return;
+    let set = copies.get(key);
+    if (set === undefined) {
+      set = new Set();
+      copies.set(key, set);
+    }
+    set.add(element);
+    copiesChanged();
+    return () => {
+      set.delete(element);
+      if (set.size === 0) copies.delete(key);
+      copiesChanged();
+    };
+  }, [key, element]);
+  useSyncExternalStore(subscribeToCopies, () => copiesVersion);
+  if (element === null) return null;
+  let last: HTMLElement | null = null;
+  for (const other of copies.get(key) ?? []) {
+    if (other !== element && follows(element, other) && (last === null || follows(last, other))) {
+      last = other;
+    }
+  }
+  return last;
 }
 
 /** The current time, ticking once a second while `active`. */
@@ -240,8 +318,52 @@ function PanelShell({ children, dashed = false }: { children: ReactNode; dashed?
   );
 }
 
+function roundTitle(round: AdvisorRound): string {
+  return round.round === 0 ? "Advisors" : `Advisor check-in ${round.round}`;
+}
+
+/** An earlier copy of a round shown in full further down: one line. */
+function RoundPointer({ round, onShow }: { round: AdvisorRound; onShow: () => void }) {
+  const moa = useProviderRecord(MOA_PROVIDER_ID);
+  const total = round.advisors.length;
+  const count =
+    round.finishedAt === null
+      ? `${round.advisors.filter((entry) => entry.status !== "running").length} of ${total} done`
+      : `${round.advisors.filter((entry) => entry.status === "answered").length} of ${total} answered`;
+  return (
+    <button
+      type="button"
+      onClick={onShow}
+      className="my-2 flex max-w-full items-center gap-2 text-left text-xs text-muted-foreground hover:text-foreground"
+    >
+      <ProviderIcon providerKind="agent" provider={moa} aria-hidden className="size-3.5 shrink-0" />
+      <span className="min-w-0 truncate">
+        {roundTitle(round)} · {count} · shown below
+      </span>
+      <Icon name="ArrowDown" fallback="ChevronDown" aria-hidden className="size-3 shrink-0" />
+    </button>
+  );
+}
+
 function RoundPanel({ id, threadId }: { id: string; threadId: string }) {
   const { state, reload } = useRound(id, threadId);
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const later = useLaterCopy(`${threadId} ${id}`, element);
+  return (
+    <div ref={setElement}>
+      {later !== null && state.kind === "ready" ? (
+        <RoundPointer
+          round={state.round}
+          onShow={() => later.scrollIntoView({ behavior: "smooth", block: "start" })}
+        />
+      ) : (
+        <RoundCard state={state} reload={reload} />
+      )}
+    </div>
+  );
+}
+
+function RoundCard({ state, reload }: { state: RoundState; reload: () => void }) {
   const moa = useProviderRecord(MOA_PROVIDER_ID);
   const running = state.kind === "ready" && state.round.finishedAt === null;
   const now = useNow(running);
@@ -286,9 +408,7 @@ function RoundPanel({ id, threadId }: { id: string; threadId: string }) {
     <PanelShell>
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <ProviderIcon providerKind="agent" provider={moa} aria-hidden className="size-4 shrink-0" />
-        <span className="text-sm font-medium">
-          {round.round === 0 ? "Advisors" : `Advisor check-in ${round.round}`}
-        </span>
+        <span className="text-sm font-medium">{roundTitle(round)}</span>
         <span className="flex-1" />
         <span className="text-xs tabular-nums text-muted-foreground">
           {running
