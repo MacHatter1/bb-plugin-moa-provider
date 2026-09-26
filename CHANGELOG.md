@@ -6,6 +6,19 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- The advisor panel no longer shows your home directory while an advisor
+  works: paths in the workspace are shown relative to it, other paths under
+  your home start with `~`, and a leading `cd <workspace> &&` is dropped.
+- A `/moa` round shown twice in a thread whose finished turns stay flat, as
+  Claude Code's do, now appears in full only once. The earlier copy shrinks to
+  one line that scrolls to it.
+- A panel the thread view re-mounts shows its round straight away, instead of
+  "Loading advisors…".
+- The `moa_ask` instructions tell agents whose tools are deferred to load the
+  schemas first, so the first call no longer fails with no arguments.
+
 ## 0.1.0 - 2026-09-26
 
 ### Added
