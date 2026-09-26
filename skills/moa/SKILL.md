@@ -22,7 +22,7 @@ parallel. You play the aggregator: you weigh what they say.
    in your reply straight away, on its own line: BB shows it as a live
    panel, so the user watches each advisor answer.
 3. Call `moa_answers` with the round `moa_ask` gave you. It waits about
-   three minutes at a time. If it reports they are still working, call it
+   45 seconds at a time. If it reports they are still working, call it
    again with the same round (strong models can take several minutes); do
    not answer the user in the meantime. Then it returns their answers.
 4. Then answer the user yourself: where the advisors agree or disagree, what

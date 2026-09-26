@@ -91,7 +91,11 @@ export interface Timing {
    * hop that gives up on a silent response after about five minutes.
    */
   consultMaxMs: number;
-  /** Longest one `moa_answers` call waits before reporting progress. */
+  /**
+   * Longest one `moa_answers` call waits before reporting progress. Kept
+   * under the 60 seconds after which Cursor's and Codex's MCP clients cancel
+   * a tool call.
+   */
   answersWaitMs: number;
   /** Ceiling for a round that keeps making progress (idle limits aside). */
   roundMaxMs: number;
@@ -106,7 +110,7 @@ const DEFAULT_TIMING: Timing = {
   statusPollMs: 3_000,
   startGraceMs: 10_000,
   consultMaxMs: 240_000,
-  answersWaitMs: 200_000,
+  answersWaitMs: 45_000,
   roundMaxMs: 30 * 60_000,
   progressCommitMs: 800,
 };
@@ -319,6 +323,8 @@ export class MoaRuns {
   private readonly byAggregator = new Map<string, Run>();
   /** The `/moa` ask in flight per asking thread, for one-at-a-time. */
   private readonly asksByThread = new Map<string, Promise<AdvisorNote[]>>();
+  /** Unsettled `/moa` asks per asking thread, stopped when its turn ends. */
+  private readonly askRuns = new Map<string, Set<Run>>();
   /** `/moa` rounds by id, for `moa_answers`. */
   private readonly asks = new Map<
     string,
@@ -433,11 +439,15 @@ export class MoaRuns {
    * is still settled before aborting a run that may belong to a newer turn.
    */
   async onThreadSettled(threadId: string): Promise<void> {
-    const run = this.activeByThread.get(threadId);
-    if (run === undefined || run.done) return;
+    const active = this.activeByThread.get(threadId);
+    const run = active !== undefined && !active.done ? active : null;
+    const asks = [...(this.askRuns.get(threadId) ?? [])];
+    if (run === null && asks.length === 0) return;
     const thread = await this.deps.sdk().threads.get({ threadId }).catch(() => null);
     if (thread !== null && thread.status !== "idle" && thread.status !== "error") return;
-    if (this.activeByThread.get(threadId) === run) run.controller.abort();
+    if (run !== null && this.activeByThread.get(threadId) === run) run.controller.abort();
+    // The turn that asked has ended, so nobody is waiting for these advisors.
+    for (const ask of asks) ask.controller.abort();
   }
 
   /**
@@ -477,6 +487,9 @@ export class MoaRuns {
 
     const run = new Run(args.threadId);
     run.signal.addEventListener("abort", () => void this.stopWorkers(run), { once: true });
+    const pending = this.askRuns.get(args.threadId) ?? new Set<Run>();
+    pending.add(run);
+    this.askRuns.set(args.threadId, pending);
     let started!: (id: string) => void;
     let failed!: (error: unknown) => void;
     const roundStarted = new Promise<string>((resolve, reject) => {
@@ -522,6 +535,10 @@ export class MoaRuns {
       .catch(() => undefined)
       .then(() => {
         if (this.asksByThread.get(args.threadId) === result) this.asksByThread.delete(args.threadId);
+        pending.delete(run);
+        if (pending.size === 0 && this.askRuns.get(args.threadId) === pending) {
+          this.askRuns.delete(args.threadId);
+        }
       });
 
     const id = await roundStarted;
@@ -537,14 +554,15 @@ export class MoaRuns {
 
   /**
    * `moa_answers`: wait for a round `moa_ask` started in this thread and
-   * return the advisors' answers. Cancelling the wait stops the advisors.
+   * return the advisors' answers. Cancelling the wait leaves them working:
+   * clients cancel slow tool calls, and the agent calls again. The round
+   * stops when the turn that asked it ends (`onThreadSettled`).
    */
   async askAnswers(threadId: string, id: string, signal: AbortSignal): Promise<string> {
     const ask = this.asks.get(id);
     if (ask !== undefined && ask.threadId === threadId) {
-      const stop = () => ask.run.controller.abort();
-      signal.addEventListener("abort", stop, { once: true });
       let timer: ReturnType<typeof setTimeout> | undefined;
+      let cancelled: (() => void) | undefined;
       try {
         // Wait a while at a time: a tool call cannot stay silent for long,
         // and advisors may take longer than that while still working.
@@ -552,6 +570,8 @@ export class MoaRuns {
           ask.result,
           new Promise<null>((resolve) => {
             timer = setTimeout(() => resolve(null), this.timing.answersWaitMs);
+            cancelled = () => resolve(null);
+            signal.addEventListener("abort", cancelled, { once: true });
           }),
         ]);
         if (notes === null) {
@@ -562,7 +582,7 @@ export class MoaRuns {
         return askAnswersText(notes, roundDirective(id));
       } finally {
         clearTimeout(timer);
-        signal.removeEventListener("abort", stop);
+        if (cancelled !== undefined) signal.removeEventListener("abort", cancelled);
       }
     }
     // After a plugin reload, a finished round can still be read back.

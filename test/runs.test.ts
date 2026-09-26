@@ -35,6 +35,8 @@ interface FakeThread {
 
 function createFakeSdk(behaviours: Record<string, Behaviour>) {
   const threads = new Map<string, FakeThread>();
+  /** Status of the MoA and asking threads, "active" unless a test sets it. */
+  const statuses = new Map<string, string>();
   const calls = { spawn: [] as Record<string, unknown>[], send: [] as Record<string, unknown>[], steer: [] as Record<string, unknown>[], stop: [] as string[], archive: [] as string[], resolve: [] as unknown[], metadata: [] as Record<string, unknown>[] };
   let seq = 0;
   const push = (thread: FakeThread, type: string, data: Record<string, unknown>) => {
@@ -95,7 +97,7 @@ function createFakeSdk(behaviours: Record<string, Behaviour>) {
     threads: {
       async get({ threadId }: { threadId: string }) {
         if (threadId === "moa-1" || threadId.startsWith("thr_")) {
-          return { id: threadId, projectId: "proj", environmentId: "env", status: "active", archivedAt: null, deletedAt: null };
+          return { id: threadId, projectId: "proj", environmentId: "env", status: statuses.get(threadId) ?? "active", archivedAt: null, deletedAt: null };
         }
         const thread = threads.get(threadId);
         if (!thread) throw new Error("no thread");
@@ -180,7 +182,7 @@ function createFakeSdk(behaviours: Record<string, Behaviour>) {
   /** Record an event on a worker, as its provider would. */
   const record = (threadId: string, type: string, data: Record<string, unknown>) =>
     push(threads.get(threadId)!, type, data);
-  return { sdk, threads, calls, record };
+  return { sdk, threads, calls, record, statuses };
 }
 
 const preset = (overrides: Partial<Preset> = {}): Preset => ({
@@ -655,19 +657,41 @@ describe("MoaRuns", () => {
     expect(calls.send).toHaveLength(2);
   });
 
-  it("stops the advisors when the agent stops waiting", async () => {
+  it("keeps the advisors working when a client cancels the wait", async () => {
+    // Cursor and Codex cancel a tool call after 60 seconds; the agent calls again.
     const { runs, calls, rounds } = setup(
-      { codex: { answer: null }, gemini: { answer: null } },
+      { codex: { answer: null, stream: { chunks: ["Use ", "yargs."], everyMs: 40, then: "finish" } }, gemini: { answer: "B" } },
       { version: 1, defaultPresetId: "default", presets: [preset()] },
     );
     const started = await runs.startAsk({ threadId: "thr_cc", question: "q", context: null, presetId: null });
     const id = /round "([^"]+)"/u.exec(started)![1]!;
     const wait = new AbortController();
-    const answers = runs.askAnswers("thr_cc", id, wait.signal);
+    const first = runs.askAnswers("thr_cc", id, wait.signal);
     await waitFor(() => (calls.spawn.length === 2 ? true : undefined));
     wait.abort();
-    await expect(answers).rejects.toThrow("stopped");
+    await expect(first).resolves.toContain("still working");
+    const answer = await runs.askAnswers("thr_cc", id, new AbortController().signal);
+    expect(answer).toContain("Use yargs.");
+    expect(calls.stop).toEqual([]);
+    expect(rounds.get(id)!.advisors.map((entry) => entry.status)).toEqual(["answered", "answered"]);
+  });
+
+  it("stops a /moa round when the turn that asked it ends", async () => {
+    const { runs, calls, rounds, statuses } = setup(
+      { codex: { answer: null }, gemini: { answer: null } },
+      { version: 1, defaultPresetId: "default", presets: [preset()] },
+    );
+    const started = await runs.startAsk({ threadId: "thr_cc", question: "q", context: null, presetId: null });
+    const id = /round "([^"]+)"/u.exec(started)![1]!;
+    await waitFor(() => (calls.spawn.length === 2 ? true : undefined));
+    // A late event while the turn still runs changes nothing.
+    await runs.onThreadSettled("thr_cc");
+    expect(calls.stop).toEqual([]);
+    statuses.set("thr_cc", "idle");
+    await runs.onThreadSettled("thr_cc");
+    await waitFor(() => (calls.stop.length === 2 ? true : undefined));
     expect(calls.stop.sort()).toEqual(["w1", "w2"]);
+    await waitFor(() => (rounds.get(id)!.finishedAt !== null ? true : undefined));
     expect(rounds.get(id)!.advisors.map((entry) => entry.status)).toEqual(["stopped", "stopped"]);
   });
 

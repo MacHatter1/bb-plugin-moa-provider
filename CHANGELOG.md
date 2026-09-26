@@ -6,6 +6,14 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- `/moa` from a Cursor or Codex thread no longer stops the advisors after a
+  minute. Those clients cancel a tool call after 60 seconds, and a cancelled
+  `moa_answers` wait used to stop the round. The wait now reports progress
+  after 45 seconds, a cancelled wait leaves the advisors working, and a round
+  stops when the turn that asked for it ends.
+
 ## 0.1.0 - 2026-09-26
 
 ### Added

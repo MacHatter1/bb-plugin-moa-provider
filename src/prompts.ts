@@ -192,7 +192,7 @@ export const ASK_TOOL_DESCRIPTION =
   "Start asking the user's Mixture of Agents advisors (other models that can read this workspace) a question. Returns at once with a panel line to show the user; then call moa_answers to wait for their answers. Use it when the user types /moa or asks for the Mixture of Agents' or the advisors' opinion.";
 
 export const ANSWERS_TOOL_DESCRIPTION =
-  "Wait for the answers to a question moa_ask started. Returns their answers, or, if they are still working after about three minutes, their progress so far; then call it again with the same round.";
+  "Wait for the answers to a question moa_ask started. Returns their answers, or, if they are still working after about 45 seconds, their progress so far; then call it again with the same round.";
 
 export const ASK_TOOL_INSTRUCTIONS = `The user can consult their Mixture of Agents advisors from this thread with \`/moa <question>\`, or by asking for the Mixture of Agents' opinion. Then:
 1. Call \`moa_ask\` with their question, and put in \`context\` what the advisors need to know, since they cannot see this conversation: the goal, relevant files and findings, and what has been tried. Set \`preset\` only when the user names one. If these tools are deferred, load their schemas first: a call made without them arrives empty and fails.
