@@ -9,7 +9,9 @@ The user wants a second opinion from their Mixture of Agents advisors: other
 models (for example Codex or Pi) that can read this workspace and answer in
 parallel. You play the aggregator: you weigh what they say.
 
-1. Call the `moa_ask` tool.
+1. Call the `moa_ask` tool. If your tools are deferred, load the schemas
+   of `moa_ask` and `moa_answers` first: a call made without them arrives
+   empty and fails.
    - `question`: the user's question, the text after `/moa`. If there is
      none, ask about what the user is working on now.
    - `context`: what the advisors need, since they cannot see this

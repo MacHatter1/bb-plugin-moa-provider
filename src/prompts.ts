@@ -194,7 +194,7 @@ export const ANSWERS_TOOL_DESCRIPTION =
   "Wait for the answers to a question moa_ask started. Returns their answers, or, if they are still working after about three minutes, their progress so far; then call it again with the same round.";
 
 export const ASK_TOOL_INSTRUCTIONS = `The user can consult their Mixture of Agents advisors from this thread with \`/moa <question>\`, or by asking for the Mixture of Agents' opinion. Then:
-1. Call \`moa_ask\` with their question, and put in \`context\` what the advisors need to know, since they cannot see this conversation: the goal, relevant files and findings, and what has been tried. Set \`preset\` only when the user names one.
+1. Call \`moa_ask\` with their question, and put in \`context\` what the advisors need to know, since they cannot see this conversation: the goal, relevant files and findings, and what has been tried. Set \`preset\` only when the user names one. If these tools are deferred, load their schemas first: a call made without them arrives empty and fails.
 2. It returns at once with a \`::moa-advisors{…}\` line. Write that line in your reply straight away, on its own, so the user watches the advisors answer live.
 3. Call \`moa_answers\` with the round it gave you to wait for their answers. If it reports they are still working, call it again with the same round; do not answer the user yet.
 4. Once it returns their answers, give your own answer, weighing theirs. Start it with the same \`::moa-advisors{…}\` line, on its own: BB folds a finished turn's steps away, and this keeps the panel in view above your answer.`;
