@@ -29,6 +29,7 @@ describe("prompts", () => {
   it("gives a fresh advisor the rules and the earlier conversation", () => {
     const prompt = advisorFirstPrompt([{ user: "Hi", answer: "Hello" }], "Fix it");
     expect(prompt).toContain("Do not modify files");
+    expect(prompt).toContain("Keep to this workspace");
     expect(prompt).toContain("<conversation_so_far>");
     expect(prompt).toContain("<user_request>\nFix it\n</user_request>");
   });
