@@ -1,4 +1,4 @@
-// bb-plugin-moa — Mixture of Agents for BB.
+// bb-plugin-moa-provider — MoA Provider: Mixture of Agents for BB.
 //
 // Registers a "Mixture of Agents" provider whose models are the user's
 // presets. A preset pairs advisor slots with an aggregator slot, each any
@@ -357,7 +357,7 @@ export default async function plugin(bb: BbPluginApi) {
 
   bb.cli.register(
     defineCli({
-      name: "moa",
+      name: "moa-provider",
       summary: "Inspect Mixture of Agents presets",
       commands: {
         list: cliCommand({
@@ -373,7 +373,7 @@ export default async function plugin(bb: BbPluginApi) {
             if (store.presets.length === 0) {
               throw new PluginCliError("No presets yet.", {
                 code: "no_presets",
-                hint: "Create one under Settings → Plugins → Mixture of Agents.",
+                hint: "Create one under Settings → Plugins → MoA Provider.",
               });
             }
             const defaultId = defaultPresetId(store);

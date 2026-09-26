@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/logo.svg" width="96" height="96" alt="Mixture of Agents logo">
+<img src="docs/logo.svg" width="96" height="96" alt="MoA Provider logo">
 
-# Mixture of Agents
+# MoA Provider
 
 ### Several models advise. One of them does the work.
 
@@ -38,11 +38,11 @@ has always been putting them on the same message: copy the prompt into each
 app, read four answers, paste one back, and keep track of which thread is
 doing the actual work.
 
-**Mixture of Agents runs that for you.** Pick a preset in the model picker and
+**MoA Provider runs that for you.** Pick a preset in the model picker and
 every message goes to your advisors in parallel, then to the one agent that
 does the work with their notes in hand.
 
-|  | Without Mixture of Agents | With Mixture of Agents |
+|  | Without MoA Provider | With MoA Provider |
 | --- | :---: | :---: |
 | Several models on one message | ❌ | ✅ in parallel, once per message |
 | Advice from models with no API key | ❌ | ✅ reuse your provider sign-ins |
@@ -128,7 +128,7 @@ its own panel.
 ## Install
 
 ```sh
-bb plugin install git:https://github.com/MacHatter1/bb-plugin-moa --yes
+bb plugin install git:https://github.com/MacHatter1/bb-plugin-moa-provider --yes
 ```
 
 That's it. On first load the plugin creates a **MoA Default** preset from the
@@ -138,8 +138,8 @@ providers installed on this machine, and `/moa` works in every thread.
 <summary><b>Install from a local clone</b></summary>
 
 ```sh
-git clone https://github.com/MacHatter1/bb-plugin-moa
-cd bb-plugin-moa
+git clone https://github.com/MacHatter1/bb-plugin-moa-provider
+cd bb-plugin-moa-provider
 npm install && bb plugin build
 bb plugin install path:$PWD --yes
 ```
@@ -158,7 +158,7 @@ bb plugin install path:$PWD --yes
 | --- | --- |
 | **Model picker** | Choose **Mixture of Agents**, then a preset. Each preset is one "model". |
 | **The thread** | The advisor panel for each round, then the aggregator's work as it happens. |
-| **Settings → Plugins → Mixture of Agents** | The **Presets** page: name, description, aggregator, advisors, mid-task consulting. |
+| **Settings → Plugins → MoA Provider** | The **Presets** page: name, description, aggregator, advisors, mid-task consulting. |
 | **The composer** | `/moa <question>`, and **Ask MoA** in the **+** menu. |
 | **`bb thread list --include-hidden`** | The worker threads. Their titles start with `MoA advisor ·` or `MoA aggregator ·`. |
 
@@ -291,8 +291,8 @@ plugin grants it itself: the tool only reads.
 ## CLI
 
 ```sh
-bb moa list                    # each preset with its aggregator and advisor slots
-bb moa list --json             # the stored shape, for scripts
+bb moa-provider list           # each preset with its aggregator and advisor slots
+bb moa-provider list --json    # the stored shape, for scripts
 ```
 
 <details>
@@ -300,8 +300,8 @@ bb moa list --json             # the stored shape, for scripts
 
 | Command | Does |
 | --- | --- |
-| `bb moa list` | Prints every preset: id (the default one marked), name, aggregator, advisors, and how often they are asked. Exits with `no_presets` when there are none. |
-| `bb moa list --json` | Prints the same store as JSON. |
+| `bb moa-provider list` | Prints every preset: id (the default one marked), name, aggregator, advisors, and how often they are asked. Exits with `no_presets` when there are none. |
+| `bb moa-provider list --json` | Prints the same store as JSON. |
 
 Presets are written in the settings page; there is no CLI for that.
 
@@ -316,7 +316,7 @@ agents. The bundled [moa](skills/moa/SKILL.md) and
 
 ## Settings
 
-`bb plugin config moa`, or **Settings → Plugins → Mixture of Agents**.
+`bb plugin config moa-provider`, or **Settings → Plugins → MoA Provider**.
 
 <details>
 <summary><b>All settings</b></summary>
@@ -337,11 +337,11 @@ the aggregator asks / every N tool calls).
 <summary><b>Turning it off</b></summary>
 
 ```sh
-bb plugin disable moa
-bb plugin enable moa
+bb plugin disable moa-provider
+bb plugin enable moa-provider
 ```
 
-`bb plugin remove moa` removes the plugin and its settings.
+`bb plugin remove moa-provider` removes the plugin and its settings.
 
 To keep the plugin but stop consulting: switch off **Consult advisors first**
 on a preset and its aggregator answers alone. To stop finished MoA turns from
@@ -365,7 +365,7 @@ bb plugin dev                      # rebuild and reload on every save
 ```
 
 ```
-server.ts              provider, settings, RPC, `bb moa`, and the four agent tools
+server.ts              provider, settings, RPC, `bb moa-provider`, and the four agent tools
 host.ts                the daemon's entry point for the provider bridge
 app.tsx                the Presets page, the composer action, and the panel slot
 src/bridge.ts          the provider bridge: moa_turn, long-polling, approvals
@@ -395,7 +395,7 @@ orchestrator against a scripted stand-in for `bb.sdk`; `test/prompts.test.ts`,
 which tools each thread is offered.
 
 **Maintainer notes.** The advisor panel only appears in a real thread, so
-verify visual changes by reloading the plugin (`bb plugin reload moa`) and
+verify visual changes by reloading the plugin (`bb plugin reload moa-provider`) and
 sending a message to a MoA thread. `bb plugin build` must pass before a path
 install picks up your changes.
 

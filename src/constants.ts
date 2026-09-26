@@ -2,7 +2,7 @@
 // frontend bundle, which loads in every BB window, does not pull it in.
 
 /** This plugin's id, which namespaces its thread metadata. */
-export const MOA_PLUGIN_ID = "moa";
+export const MOA_PLUGIN_ID = "moa-provider";
 
 /** This plugin's own provider id; a preset slot may not point back at it. */
 export const MOA_PROVIDER_ID = "moa";

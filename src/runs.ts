@@ -460,14 +460,14 @@ export class MoaRuns {
       const known = store.presets.map((entry) => entry.id).join(", ");
       throw new Error(
         presetId === null
-          ? "There are no Mixture of Agents presets yet. Create one under Settings → Plugins → Mixture of Agents."
+          ? "There are no Mixture of Agents presets yet. Create one under Settings → Plugins → MoA Provider."
           : `There is no Mixture of Agents preset "${presetId}". Presets: ${known || "none"}.`,
       );
     }
     const advisors = advisorSlots(preset);
     if (advisors.length === 0) {
       throw new Error(
-        `The "${preset.name}" preset has no advisors switched on. Add some under Settings → Plugins → Mixture of Agents.`,
+        `The "${preset.name}" preset has no advisors switched on. Add some under Settings → Plugins → MoA Provider.`,
       );
     }
     const thread = await this.deps.sdk().threads.get({ threadId: args.threadId });
@@ -625,7 +625,7 @@ export class MoaRuns {
     const preset = findPreset(store, args.presetId);
     if (preset === null) {
       throw new Error(
-        `There is no Mixture of Agents preset named "${args.presetId}". Pick a preset in the model picker, or create one under Settings → Plugins → Mixture of Agents.`,
+        `There is no Mixture of Agents preset named "${args.presetId}". Pick a preset in the model picker, or create one under Settings → Plugins → MoA Provider.`,
       );
     }
     const thread = await sdk.threads.get({ threadId: run.moaThreadId });

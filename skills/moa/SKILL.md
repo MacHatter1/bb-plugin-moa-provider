@@ -16,7 +16,7 @@ parallel. You play the aggregator: you weigh what they say.
      none, ask about what the user is working on now.
    - `context`: what the advisors need, since they cannot see this
      conversation: the goal, relevant files and findings, what has been tried.
-   - `preset`: only when the user names a preset (`bb moa list` shows the
+   - `preset`: only when the user names a preset (`bb moa-provider list` shows the
      ids). Otherwise the default preset answers.
 2. It returns at once with a `::moa-advisors{id="…"}` line. Write that line
    in your reply straight away, on its own line: BB shows it as a live
@@ -32,4 +32,4 @@ parallel. You play the aggregator: you weigh what they say.
 
 If `moa_ask` or `moa_answers` is not available in this session, say so: tools are fixed when a
 session starts, so a new thread (or reloading this one) picks it up, and the
-Mixture of Agents plugin must be enabled.
+MoA Provider plugin must be enabled.

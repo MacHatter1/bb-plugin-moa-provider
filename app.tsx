@@ -1,4 +1,4 @@
-// bb-plugin-moa — frontend: the settings page, which edits the presets that
+// bb-plugin-moa-provider — frontend: the settings page, which edits the presets that
 // appear as models of the "Mixture of Agents" provider, and the advisor panel
 // embed (src/advisor-panel.tsx). Each slot uses BB's own provider/model
 // picker, so any installed provider — Claude Code, Codex, Pi, ACP agents,
@@ -361,7 +361,7 @@ function PresetsSection() {
     // Only a new saved store resets the form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved]);
-  // Another window or `bb moa` changed the presets: pick them up unless
+  // Another window or `bb moa-provider` changed the presets: pick them up unless
   // there are unsaved edits here.
   useRealtime("presets-changed", () => {
     if (!dirty) refetch();

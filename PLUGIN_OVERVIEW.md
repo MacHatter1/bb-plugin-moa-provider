@@ -1,5 +1,5 @@
-Put several agents on one message. Mixture of Agents adds a provider to BB's
-model picker whose models are your presets: advisor agents read the request
+Put several agents on one message. MoA Provider adds a Mixture of Agents
+provider to BB's model picker whose models are your presets: advisor agents read the request
 first, then an aggregator agent reads their notes and does the work. Any
 installed provider and model can fill a slot.
 
@@ -19,7 +19,7 @@ installed provider and model can fill a slot.
   agent asks the advisors, shows the panel live, then weighs their notes.
 - Optional mid-task check-ins: the aggregator gets a `moa_consult` tool, and a
   preset can nudge it to use that tool every N tool calls (1–50).
-- `bb moa list` to print the presets, and two bundled skills.
+- `bb moa-provider list` to print the presets, and two bundled skills.
 
 ## How it works
 

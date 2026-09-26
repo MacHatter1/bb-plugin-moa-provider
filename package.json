@@ -1,5 +1,5 @@
 {
-  "name": "bb-plugin-moa",
+  "name": "bb-plugin-moa-provider",
   "version": "0.1.0",
   "description": "Mixture of Agents for BB: advisor models answer first, then an aggregator reads their notes and does the work.",
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "bb": {
-    "name": "Mixture of Agents",
+    "name": "MoA Provider",
     "description": "Adds a Mixture of Agents provider: advisor models answer first, then an aggregator reads their notes and does the work.",
     "branding": {
       "icon": "./icons/moa.svg"

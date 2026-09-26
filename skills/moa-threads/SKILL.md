@@ -22,13 +22,13 @@ it, and they are reused on later messages, so each keeps its own context.
 
 ## Commands
 
-- `bb moa list` — presets with their slots; `--json` for the stored shape.
+- `bb moa-provider list` — presets with their slots; `--json` for the stored shape.
 - `bb thread spawn --provider moa --model <preset-id> --prompt "…"` — start a
   MoA thread. `bb provider models moa` lists the preset ids.
 - `bb thread list --include-hidden` — the workers. Their titles start with
   `MoA advisor ·` or `MoA aggregator ·`.
 
-Presets are edited in Settings → Plugins → Mixture of Agents. There is no CLI
+Presets are edited in Settings → Plugins → MoA Provider. There is no CLI
 to write them.
 
 ## Behaviour to know

@@ -533,7 +533,7 @@ describe("MoaRuns", () => {
     store.presets[0] = preset({ fanout: "every-n" });
     await drain(runs, runs.start("moa-1", START));
     expect(calls.metadata).toEqual([
-      { threadId: "w3", pluginId: "moa", set: { consult: true } },
+      { threadId: "w3", pluginId: "moa-provider", set: { consult: true } },
     ]);
     expect(calls.stop).toContain("w3");
   });
