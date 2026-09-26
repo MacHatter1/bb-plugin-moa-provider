@@ -657,6 +657,42 @@ describe("MoaRuns", () => {
     expect(calls.send).toHaveLength(2);
   });
 
+  it("keeps a check-in going when a client cancels the call", async () => {
+    const { runs, calls, threads, rounds, record } = setup(
+      {
+        codex: { answer: null, stream: { chunks: ["Keep ", "it."], everyMs: 40, then: "finish" } },
+        gemini: { answer: "Advice B" },
+        "claude-code": { answer: null, tools: 2 },
+      },
+      { version: 1, defaultPresetId: "default", presets: [preset({ fanout: "on-request" })] },
+    );
+    const runId = runs.start("moa-1", START);
+    const aggregator = await waitFor(() =>
+      [...threads.values()].find((thread) => thread.providerId === "claude-code" && thread.events.length >= 5),
+    );
+    record(aggregator.id, "item/started", {
+      item: { type: "toolCall", id: "consult-1", tool: "moa_consult", server: "bb", arguments: {}, status: "pending" },
+    });
+    // Cursor and Codex cancel a tool call after 60 seconds; the aggregator calls again.
+    const call = new AbortController();
+    const first = runs.consultAdvisors(aggregator.id, "Should I keep the cache?", call.signal);
+    call.abort();
+    await expect(first).resolves.toContain("still working on your question");
+    const answer = await runs.consultAdvisors(aggregator.id, "Ignored while they work", new AbortController().signal);
+    expect(answer).toContain("Keep it.");
+    expect(answer).toContain("Advice B");
+    const checkIns = [...rounds.rounds.values()].filter((round) => round.round >= 1);
+    expect(checkIns).toHaveLength(1);
+    expect(checkIns[0]).toMatchObject({
+      question: "Should I keep the cache?",
+      advisors: [{ status: "answered" }, { status: "answered" }],
+    });
+    const advisorIds = [...threads.values()].filter((thread) => thread.providerId !== "claude-code").map((thread) => thread.id);
+    expect(calls.stop.filter((id) => advisorIds.includes(id))).toEqual([]);
+    runs.interrupt("moa-1", runId);
+    await drain(runs, runId);
+  });
+
   it("keeps the advisors working when a client cancels the wait", async () => {
     // Cursor and Codex cancel a tool call after 60 seconds; the agent calls again.
     const { runs, calls, rounds } = setup(
@@ -792,7 +828,7 @@ describe("MoaRuns", () => {
       { codex: { answer: null, stream: { chunks: ["a", "b", "c", "d"], everyMs: 40, then: "finish" } }, gemini: { answer: "B" } },
       { version: 1, defaultPresetId: "default", presets: [preset()] },
       2_000,
-      { answersWaitMs: 60 },
+      { callWaitMs: 60 },
     );
     const started = await runs.startAsk({ threadId: "thr_cc", question: "q", context: null, presetId: null });
     const id = /round "([^"]+)"/u.exec(started)![1]!;

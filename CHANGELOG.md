@@ -13,6 +13,10 @@ project uses [Semantic Versioning](https://semver.org/).
   `moa_answers` wait used to stop the round. The wait now reports progress
   after 45 seconds, a cancelled wait leaves the advisors working, and a round
   stops when the turn that asked for it ends.
+- Mid-task check-ins with a Cursor or Codex aggregator no longer stop after a
+  minute for the same reason. `moa_consult` reports progress after 45 seconds,
+  a cancelled call leaves the check-in running, and the next call waits on the
+  same check-in.
 
 ## 0.1.0 - 2026-09-26
 

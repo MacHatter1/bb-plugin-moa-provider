@@ -44,7 +44,8 @@ to write them.
   aggregator gets a `moa_consult` tool, and with "every N tool calls" it is
   sent a "Mixture of Agents check-in" message asking it to call that tool.
   If you are the aggregator and see such a check-in, it is genuine: call
-  `moa_consult` with your progress and plan, then continue.
+  `moa_consult` with your progress and plan, then continue. Each call waits
+  about 45 seconds; if it says the advisors are still working, call it again.
 - An advisor that fails or stops making progress for `advisorTimeoutSeconds`
   (default 180) is dropped for that message; what it had written still reaches
   the aggregator, marked as cut off. The aggregator still runs. A round that

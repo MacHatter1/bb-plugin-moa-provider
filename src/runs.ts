@@ -46,6 +46,7 @@ import {
   aggregatorPreamble,
   askAnswersText,
   askProgressText,
+  consultProgressText,
   askStartedText,
   consultNudge,
   consultResultText,
@@ -86,17 +87,14 @@ export interface Timing {
   statusPollMs: number;
   /** A worker with no turn this long after the send failed to start. */
   startGraceMs: number;
-  /**
-   * Longest a `moa_consult` call may block. The tool's reply crosses an HTTP
-   * hop that gives up on a silent response after about five minutes.
-   */
+  /** Ceiling for a mid-task check-in round, which holds the aggregator back. */
   consultMaxMs: number;
   /**
-   * Longest one `moa_answers` call waits before reporting progress. Kept
-   * under the 60 seconds after which Cursor's and Codex's MCP clients cancel
-   * a tool call.
+   * Longest one `moa_answers` or `moa_consult` call waits before reporting
+   * progress. Kept under the 60 seconds after which Cursor's and Codex's MCP
+   * clients cancel a tool call.
    */
-  answersWaitMs: number;
+  callWaitMs: number;
   /** Ceiling for a round that keeps making progress (idle limits aside). */
   roundMaxMs: number;
   /** How often a working advisor's progress is saved for its panel. */
@@ -110,7 +108,7 @@ const DEFAULT_TIMING: Timing = {
   statusPollMs: 3_000,
   startGraceMs: 10_000,
   consultMaxMs: 240_000,
-  answersWaitMs: 45_000,
+  callWaitMs: 45_000,
   roundMaxMs: 30 * 60_000,
   progressCommitMs: 800,
 };
@@ -124,6 +122,28 @@ const MIRROR_CATCH_UP_MS = 3_000;
 /** Finished runs linger this long so a retried poll still finds `done`. */
 const FINISHED_TTL_MS = 5 * 60_000;
 const POLL_RESPONSE_BUDGET = 2 * 1024 * 1024;
+
+/**
+ * `promise`'s value, or null after `ms` or once `signal` aborts. A tool call
+ * waits on work this way, so a client that cancels the call stops only the
+ * wait, never the work.
+ */
+function settleWithin<T>(promise: Promise<T>, ms: number, signal: AbortSignal): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cancelled: (() => void) | undefined;
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), ms);
+      cancelled = () => resolve(null);
+      if (signal.aborted) resolve(null);
+      else signal.addEventListener("abort", cancelled, { once: true });
+    }),
+  ]).finally(() => {
+    clearTimeout(timer);
+    if (cancelled !== undefined) signal.removeEventListener("abort", cancelled);
+  });
+}
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -283,6 +303,8 @@ interface Consultation {
   /** `toolsSinceConsult` when the last check-in was sent, while unanswered. */
   nudgedAt: number | null;
   inFlight: Promise<string> | null;
+  /** The in-flight check-in's round, for progress while it runs. */
+  roundId: string | null;
   rounds: number;
   /** The aggregator event sequence the mirror has copied so far. */
   mirroredSeq: number;
@@ -421,16 +443,21 @@ export class MoaRuns {
     if (run === undefined || run.done || consultation === null) {
       return "No Mixture of Agents turn is running for this thread, so there are no advisors to ask. Carry on.";
     }
+    // A call while a check-in runs waits on that one: clients cancel slow
+    // tool calls, so the aggregator calls again to keep waiting.
     if (consultation.inFlight === null) {
-      consultation.inFlight = this.consultRound(run, consultation, question, signal).finally(
-        () => {
-          consultation.inFlight = null;
-          consultation.toolsSinceConsult = 0;
-          consultation.nudgedAt = null;
-        },
-      );
+      consultation.inFlight = this.consultRound(run, consultation, question).finally(() => {
+        consultation.inFlight = null;
+        consultation.roundId = null;
+        consultation.toolsSinceConsult = 0;
+        consultation.nudgedAt = null;
+      });
     }
-    return consultation.inFlight;
+    const notes = await settleWithin(consultation.inFlight, this.timing.callWaitMs, signal);
+    if (notes !== null) return notes;
+    const { roundId } = consultation;
+    const round = roundId === null ? null : this.deps.rounds.get(roundId);
+    return consultProgressText(round?.advisors ?? [], Date.now());
   }
 
   /**
@@ -561,29 +588,15 @@ export class MoaRuns {
   async askAnswers(threadId: string, id: string, signal: AbortSignal): Promise<string> {
     const ask = this.asks.get(id);
     if (ask !== undefined && ask.threadId === threadId) {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      let cancelled: (() => void) | undefined;
-      try {
-        // Wait a while at a time: a tool call cannot stay silent for long,
-        // and advisors may take longer than that while still working.
-        const notes = await Promise.race([
-          ask.result,
-          new Promise<null>((resolve) => {
-            timer = setTimeout(() => resolve(null), this.timing.answersWaitMs);
-            cancelled = () => resolve(null);
-            signal.addEventListener("abort", cancelled, { once: true });
-          }),
-        ]);
-        if (notes === null) {
-          const round = this.deps.rounds.get(id);
-          return askProgressText(round?.advisors ?? [], id, Date.now());
-        }
-        if (ask.run.signal.aborted) throw new Error("The advisors were stopped.");
-        return askAnswersText(notes, roundDirective(id));
-      } finally {
-        clearTimeout(timer);
-        if (cancelled !== undefined) signal.removeEventListener("abort", cancelled);
+      // Wait a while at a time: a tool call cannot stay silent for long,
+      // and advisors may take longer than that while still working.
+      const notes = await settleWithin(ask.result, this.timing.callWaitMs, signal);
+      if (notes === null) {
+        const round = this.deps.rounds.get(id);
+        return askProgressText(round?.advisors ?? [], id, Date.now());
       }
+      if (ask.run.signal.aborted) throw new Error("The advisors were stopped.");
+      return askAnswersText(notes, roundDirective(id));
     }
     // After a plugin reload, a finished round can still be read back.
     const round = this.deps.rounds.get(id);
@@ -697,7 +710,6 @@ export class MoaRuns {
     run: Run,
     consultation: Consultation,
     question: string,
-    callSignal: AbortSignal,
   ): Promise<string> {
     const { ctx, mirror } = consultation;
     consultation.rounds += 1;
@@ -715,9 +727,12 @@ export class MoaRuns {
       round: consultation.rounds,
       question,
       idleMs: await this.deps.advisorIdleMs(),
-      // `moa_consult` blocks a tool call, which cannot stay silent for long.
       maxMs: this.timing.consultMaxMs,
-      signal: AbortSignal.any([run.signal, callSignal]),
+      // Not the call's signal: a cancelled call only stops its wait.
+      signal: run.signal,
+      onStarted: (id) => {
+        consultation.roundId = id;
+      },
       prompt: (fresh) =>
         fresh
           ? `${advisorFirstPrompt(ctx.state.history, ctx.userText)}\n\n${advisorConsultPrompt(question, progress)}`
@@ -996,6 +1011,7 @@ export class MoaRuns {
           toolsSinceConsult: 0,
           nudgedAt: null,
           inFlight: null,
+          roundId: null,
           rounds: 0,
           mirroredSeq: worker.since,
         }

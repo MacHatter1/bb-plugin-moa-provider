@@ -136,7 +136,7 @@ ${entries}
 // ── mid-turn consultation (fanout "on-request" and "every-n") ─────────────
 
 export const CONSULT_TOOL_DESCRIPTION =
-  "Ask your Mixture of Agents advisors — other models that can read this workspace — for advice partway through a task. Blocks until they answer, then returns their notes. They see your question plus a summary of what you have done this turn.";
+  "Ask your Mixture of Agents advisors — other models that can read this workspace — for advice partway through a task. Returns their notes, or, if they are still working after about 45 seconds, their progress so far; then call it again to keep waiting. They see your question plus a summary of what you have done this turn.";
 
 export const CHECK_IN_TITLE = "Mixture of Agents check-in";
 
@@ -224,33 +224,49 @@ ${panelLine}
 2. Then call moa_answers with round "${round}" to wait for their answers. If it says they are still working, call it again.`;
 }
 
+interface AdvisorProgress {
+  label: string;
+  status: string;
+  startedAt: number;
+  answer: string | null;
+  activity?: string | null;
+}
+
+/** One line per advisor: done, or what it is doing and for how long. */
+function progressLines(advisors: readonly AdvisorProgress[], now: number): string {
+  return advisors
+    .map((entry) => {
+      if (entry.status !== "running") return `- ${entry.label}: ${entry.status}`;
+      const minutes = Math.max(1, Math.round((now - entry.startedAt) / 60_000));
+      const doing =
+        entry.answer !== null && entry.answer !== ""
+          ? `writing (${entry.answer.length} characters so far)`
+          : (entry.activity ?? "working").toLowerCase().startsWith("thinking")
+            ? "thinking"
+            : "working";
+      return `- ${entry.label}: still ${doing}, about ${minutes} min in`;
+    })
+    .join("\n");
+}
+
 /** What `moa_answers` returns while advisors are still working. */
 export function askProgressText(
-  advisors: readonly {
-    label: string;
-    status: string;
-    startedAt: number;
-    answer: string | null;
-    activity?: string | null;
-  }[],
+  advisors: readonly AdvisorProgress[],
   round: string,
   now: number,
 ): string {
-  const lines = advisors.map((entry) => {
-    if (entry.status !== "running") return `- ${entry.label}: ${entry.status}`;
-    const minutes = Math.max(1, Math.round((now - entry.startedAt) / 60_000));
-    const doing =
-      entry.answer !== null && entry.answer !== ""
-        ? `writing (${entry.answer.length} characters so far)`
-        : (entry.activity ?? "working").toLowerCase().startsWith("thinking")
-          ? "thinking"
-          : "working";
-    return `- ${entry.label}: still ${doing}, about ${minutes} min in`;
-  });
   return `The advisors are still working. The user can watch them in the panel.
-${lines.join("\n")}
+${progressLines(advisors, now)}
 
 Call moa_answers again with round "${round}" to keep waiting. Do not answer the user yet.`;
+}
+
+/** What `moa_consult` returns while advisors are still working. */
+export function consultProgressText(advisors: readonly AdvisorProgress[], now: number): string {
+  return `The advisors are still working on your question. The user can watch them in the panel.
+${progressLines(advisors, now)}
+
+Call moa_consult again to keep waiting; the question is ignored while they work. Hold off on the change you asked about until they answer.`;
 }
 
 /** What `moa_answers` returns to the asking agent. */
