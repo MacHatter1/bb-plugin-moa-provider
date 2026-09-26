@@ -272,7 +272,8 @@ plugin grants it itself: the tool only reads.
   its slot's model provider, so choose a preset's providers as you would for
   any thread.
 - 🔒 **Nothing new to sign in to.** Slots run on the providers already
-  installed on your machine. No API keys, no proxy, no third-party service.
+  installed on your machine. No API keys, no proxy, and no service of the
+  plugin's own.
 - 👁️ **Nothing hidden from you.** Every advisor round is a panel in your
   thread, every worker thread is listable, and the notes block the aggregator
   sees is the text in that panel.
