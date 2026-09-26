@@ -1,7 +1,7 @@
 {
   "name": "bb-plugin-moa",
   "version": "0.1.0",
-  "description": "Mixture of Agents for BB: advisor models answer first, an aggregator model does the work.",
+  "description": "Mixture of Agents for BB: advisor models answer first, then an aggregator reads their notes and does the work.",
   "type": "module",
   "license": "MIT",
   "keywords": [
@@ -18,7 +18,7 @@
   },
   "bb": {
     "name": "Mixture of Agents",
-    "description": "Adds a Mixture of Agents provider: advisor agents answer first, then an aggregator agent reads their notes and does the work. Mix any installed providers and models.",
+    "description": "Adds a Mixture of Agents provider: advisor models answer first, then an aggregator reads their notes and does the work.",
     "branding": {
       "icon": "./icons/moa.svg"
     },

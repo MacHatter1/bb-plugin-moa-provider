@@ -44,9 +44,10 @@ to write them.
   sent a "Mixture of Agents check-in" message asking it to call that tool.
   If you are the aggregator and see such a check-in, it is genuine: call
   `moa_consult` with your progress and plan, then continue.
-- An advisor that fails or passes the time limit (setting
-  `advisorTimeoutSeconds`, default 300) is dropped for that message; the
-  aggregator still runs.
+- An advisor that fails or stops making progress for `advisorTimeoutSeconds`
+  (default 180) is dropped for that message; what it had written still reaches
+  the aggregator, marked as cut off. The aggregator still runs. A round that
+  keeps working is capped at 30 minutes, and a mid-task check-in at 4.
 - Background work the aggregator starts, and anything it does after its turn
   ends, stays in the hidden worker thread. Open the worker to see it.
 - A message costs one advisor turn per advisor plus the aggregator's whole
