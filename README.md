@@ -119,7 +119,7 @@ its own panel.
 <div align="center">
 <table>
 <tr>
-<td align="center"><img src="docs/screenshots/moa-ask.png" alt="/moa from an ordinary thread: the advisor panel, then that thread's own answer" width="440"><br><sub><b>`/moa` in a thread on any provider</b></sub></td>
+<td align="center"><img src="docs/screenshots/moa-ask.png" alt="/moa from an ordinary thread: the advisor panel, then that thread's own answer" width="440"><br><sub><b><code>/moa</code> in a thread on any provider</b></sub></td>
 <td align="center"><img src="docs/screenshots/presets.png" alt="The Presets settings page with an aggregator slot and two advisor slots" width="440"><br><sub><b>Presets, built on BB's own model picker</b></sub></td>
 </tr>
 </table>
