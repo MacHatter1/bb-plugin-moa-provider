@@ -127,18 +127,24 @@ its own panel.
 
 ## Install
 
-This plugin is not published yet, so install it from a local clone:
+```sh
+bb plugin install git:https://github.com/MacHatter1/bb-plugin-moa --yes
+```
+
+That's it. On first load the plugin creates a **MoA Default** preset from the
+providers installed on this machine, and `/moa` works in every thread.
+
+<details>
+<summary><b>Install from a local clone</b></summary>
 
 ```sh
+git clone https://github.com/MacHatter1/bb-plugin-moa
 cd bb-plugin-moa
 npm install && bb plugin build
 bb plugin install path:$PWD --yes
 ```
 
-That's it. On first load the plugin creates a **MoA Default** preset from the
-providers installed on this machine, and `/moa` works in every thread. Once
-the repository is public, `bb plugin install git:https://github.com/MacHatter1/bb-plugin-moa --yes`
-rebuilds `dist/` for you.
+</details>
 
 **Requirements**
 
